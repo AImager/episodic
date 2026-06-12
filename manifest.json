@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "episodic",
+  "version": "2.2.0",
+  "description": "导出当前 ChatGPT / Gemini 对话为 Markdown，可同步到 GitHub 知识库；支持一键收藏网页指针",
+
+  "permissions": [
+    "downloads",
+    "scripting",
+    "tabs",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://gemini.google.com/*",
+    "https://api.github.com/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "options_page": "options.html",
+
+  "background": {
+    "service_worker": "background.js"
+  }
+}

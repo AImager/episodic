@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 280px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: #333;
+    }
+    h2 { margin: 0 0 12px; font-size: 16px; }
+    .target {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      padding: 3px;
+    }
+    .target label {
+      flex: 1;
+      text-align: center;
+      padding: 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .target input { display: none; }
+    .target input:checked + span {
+      display: block;
+      background: white;
+      border-radius: 4px;
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .target span { display: block; padding: 5px; }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      background: #10a37f;
+      color: white;
+      margin-bottom: 8px;
+    }
+    .btn:hover { background: #0d8f6e; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    .btn.gemini { background: #4285f4; }
+    .btn.gemini:hover { background: #3367d6; }
+    .btn.bookmark { background: #6b7280; }
+    .btn.bookmark:hover { background: #4b5563; }
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 12px 0 10px;
+    }
+    .settings-link {
+      display: block;
+      text-align: center;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #888;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .settings-link:hover { color: #4285f4; }
+    #status {
+      margin-top: 12px;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      display: none;
+    }
+    .status-info  { background: #e8f4fd; color: #1a73e8; display: block !important; }
+    .status-ok    { background: #e6f4ea; color: #137333; display: block !important; }
+    .status-error { background: #fce8e6; color: #c5221f; display: block !important; }
+  </style>
+</head>
+<body>
+  <h2>episodic</h2>
+
+  <div class="target">
+    <label>
+      <input type="radio" name="target" value="github" checked>
+      <span>同步到 GitHub</span>
+    </label>
+    <label>
+      <input type="radio" name="target" value="download">
+      <span>下载到本地</span>
+    </label>
+  </div>
+
+  <button class="btn" id="exportBtn">导出当前 ChatGPT 对话</button>
+  <button class="btn gemini" id="geminiBtn">导出当前 Gemini 对话</button>
+  <hr class="divider">
+  <button class="btn bookmark" id="bookmarkBtn">⭐ 收藏当前页面（存指针）</button>
+  <a class="settings-link" id="settingsLink">⚙ GitHub 同步设置</a>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

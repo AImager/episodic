@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>episodic 设置</title>
+  <style>
+    body {
+      max-width: 640px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      color: #2c2c2c;
+      line-height: 1.6;
+    }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .subtitle { color: #888; font-size: 13px; margin-bottom: 24px; }
+    .field { margin-bottom: 18px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    .hint { font-weight: 400; color: #999; font-size: 12px; margin-left: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    input:focus { outline: none; border-color: #4285f4; }
+    .row { display: flex; gap: 12px; }
+    .row .field { flex: 1; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      background: #10a37f;
+      color: white;
+    }
+    .btn:hover { background: #0d8f6e; }
+    .btn-secondary { background: #5f6368; }
+    .btn-secondary:hover { background: #494c50; }
+    .actions { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    #status {
+      margin-left: auto;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      display: none;
+    }
+    .ok { background: #e6f4ea; color: #137333; display: inline-block !important; }
+    .err { background: #fce8e6; color: #c5221f; display: inline-block !important; }
+    .box {
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-top: 24px;
+      font-size: 13px;
+      color: #555;
+    }
+    .box h3 { margin: 0 0 8px; font-size: 14px; color: #333; }
+    .box ol { margin: 6px 0; padding-left: 20px; }
+    .box code { background: #eaecef; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    a { color: #4285f4; }
+  </style>
+</head>
+<body>
+  <h1>episodic</h1>
+  <div class="subtitle">配置 GitHub 同步，导出的对话会直接 commit 到你的知识库仓库。</div>
+
+  <div class="field">
+    <label>GitHub Token <span class="hint">fine-grained，仅授权目标仓库的 Contents 读写</span></label>
+    <input type="password" id="token" placeholder="github_pat_...">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Owner <span class="hint">用户名/组织</span></label>
+      <input type="text" id="owner" placeholder="AImager">
+    </div>
+    <div class="field">
+      <label>Repo <span class="hint">仓库名</span></label>
+      <input type="text" id="repo" placeholder="note">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Branch</label>
+      <input type="text" id="branch" placeholder="main">
+    </div>
+    <div class="field">
+      <label>目标路径 <span class="hint">投递目录</span></label>
+      <input type="text" id="path" placeholder="对话存档">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="save">保存</button>
+    <button class="btn btn-secondary" id="test">测试连接</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="box">
+    <h3>如何生成最小权限 Token</h3>
+    <ol>
+      <li>打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank">GitHub → Fine-grained tokens</a></li>
+      <li>「Generate new token」，Repository access 选 <strong>Only select repositories</strong>，只勾选你的笔记仓库</li>
+      <li>Permissions → Repository permissions → <code>Contents</code> 设为 <strong>Read and write</strong></li>
+      <li>生成后复制 <code>github_pat_...</code> 粘贴到上方，保存即可</li>
+    </ol>
+    Token 仅存于本浏览器的 chrome.storage.local，不会上传到任何第三方。
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
