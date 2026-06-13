@@ -389,25 +389,57 @@ async function readGithubFile(cfg, fullPath) {
   return { content: base64ToUtf8(data.content.replace(/\n/g, "")), sha: data.sha };
 }
 
-const BOOKMARK_DIR = "收藏";
-const BOOKMARK_INDEX = "README.md";
+const BOOKMARK_DIR_DEFAULT = "收藏";
 
-function bookmarkIndexHeader() {
+function bookmarkYearHeader(year) {
   return [
     "---",
     "type: readme",
-    "title: 收藏",
+    `title: 收藏 ${year}`,
+    `year: ${year}`,
     "---",
     "",
-    "# 收藏",
+    `# 收藏 ${year}`,
     "",
     "> 浏览器一键收藏的指针/索引，**与认知三层正交、不参与提炼推演**——就是个电子收藏夹。",
-    "> 用没用得到不重要，链接失效也不补。要提炼的真原料在 [[../对话存档/README.md|对话存档]]，别混。",
+    "> 用没用得到不重要，链接失效也不补。要提炼的真原料在对话存档里，别混。",
+    "> 按年归档，每年一个文件；同一链接跨年不重复收藏。",
     "",
-    "| 日期 | 标题 | 来源 | 链接 |",
-    "|------|------|------|------|",
+    "| 日期 | 标题 | 描述 | 来源 | 链接 |",
+    "|------|------|------|------|------|",
     "",
   ].join("\n");
+}
+
+// 列出收藏目录下的所有 .md 文件（含历史年份与旧版 README.md），用于跨年去重。
+// 目录不存在返回空列表。
+async function listBookmarkFiles(cfg, dir) {
+  const apiBase = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIPath(dir)}`;
+  const headers = {
+    "Authorization": `Bearer ${cfg.token}`,
+    "Accept": "application/vnd.github+json",
+  };
+  const resp = await fetch(`${apiBase}?ref=${encodeURIComponent(cfg.branch)}`, { headers });
+  if (resp.status === 404) return [];
+  if (!resp.ok) throw new Error(`GitHub 列目录失败 HTTP ${resp.status}`);
+  const data = await resp.json();
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter(f => f.type === "file" && f.name.endsWith(".md"))
+    .map(f => ({ name: f.name, path: f.path, sha: f.sha }));
+}
+
+// 注入页面读取自报的描述：og:description → meta[name=description]，拿不到返回空。
+// 纯读取页面已声明的 meta，不做提炼，符合「指针归档」定位。
+function readPageDescription() {
+  const pick = sel => document.querySelector(sel)?.getAttribute("content")?.trim() || "";
+  return pick('meta[property="og:description"]') || pick('meta[name="description"]') || "";
+}
+
+// 收藏表格里的单元格清洗：转义竖线、压平换行、截断，避免撑破 Markdown 表格。
+function cleanCell(str, maxLen = 80) {
+  const s = String(str || "").replace(/\|/g, "丨").replace(/\s+/g, " ").trim();
+  return s.length > maxLen ? s.slice(0, maxLen - 1) + "…" : s;
 }
 
 async function bookmarkCurrentPage() {
@@ -417,32 +449,61 @@ async function bookmarkCurrentPage() {
   const url = tab.url;
   if (!/^https?:\/\//.test(url)) throw new Error("只能收藏 http(s) 网页");
 
-  const title = (tab.title || url).replace(/\|/g, "丨").trim(); // 转义竖线，避免破坏表格
+  const title = cleanCell(tab.title || url);
   const date = new Date().toISOString().slice(0, 10);
+  const year = date.slice(0, 4);
   let host = "";
   try { host = new URL(url).hostname.replace(/^www\./, ""); } catch { host = ""; }
 
-  const cfg = await getGithubConfig();
-  const indexPath = `${BOOKMARK_DIR}/${BOOKMARK_INDEX}`;
-  const existing = await readGithubFile(cfg, indexPath);
+  // 注入读取页面自报描述；失败（无权限/受限页）则留空，不阻塞收藏
+  let desc = "";
+  try {
+    const r = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: readPageDescription });
+    desc = cleanCell(r?.[0]?.result || "");
+  } catch { desc = ""; }
 
-  let content = existing ? existing.content : bookmarkIndexHeader();
-  // 按 URL 去重：已存在则不重复追加
-  if (content.includes(`](${url})`)) {
-    return { count: 0, skipped: 1, updated: false, title };
+  const cfg = await getGithubConfig();
+  const dir = (cfg.bookmarkPath || BOOKMARK_DIR_DEFAULT).replace(/^\/+|\/+$/g, "");
+  const yearPath = `${dir}/${year}.md`;
+  const row = `| ${date} | ${title} | ${desc} | ${host} | [打开](${url}) |`;
+  const message = `chore: bookmark 「${title}」`;
+
+  // 跨年去重：读目录下所有 .md（含历史年份与旧版 README.md）检查该 URL 是否已收藏。
+  // 历史年份文件本次不会被改，没有写竞争，只需在此查一次；当年文件单独拿出来交给下面
+  // 的重试循环（它会重读最新内容再查一次，覆盖并发场景）。
+  const files = await listBookmarkFiles(cfg, dir);
+  let yearFile = null;
+  for (const f of files) {
+    if (f.name === `${year}.md`) { yearFile = await readGithubFile(cfg, f.path); continue; }
+    const file = await readGithubFile(cfg, f.path);
+    if (file && file.content.includes(`](${url})`)) {
+      return { count: 0, skipped: 1, updated: false, title };
+    }
   }
 
-  const row = `| ${date} | ${title} | ${host} | [打开](${url}) |`;
-  // 追加到文件末尾（表格之后），保证以换行收尾
-  content = content.replace(/\s*$/, "") + "\n" + row + "\n";
-
-  // 直接 PUT（带 sha 更新或新建）
-  await commitToGithubAbsolute(cfg, indexPath, content, `chore: bookmark 「${title}」`, existing?.sha || null);
-  return { count: 1, skipped: 0, updated: !!existing, title };
+  // 当年文件的「读-改-写」放进重试单元：连续快速收藏时，两次收藏可能读到同一份 sha，
+  // 先写的把文件 sha 推新后，后写的带着过期 sha 撞 409。重试时**重新拉最新内容和 sha**，
+  // 在最新内容上重新追加（而非沿用旧内容），避免覆盖掉并发写入的行；同时重查去重。
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) yearFile = await readGithubFile(cfg, yearPath);
+    if (yearFile && yearFile.content.includes(`](${url})`)) {
+      return { count: 0, skipped: 1, updated: false, title };
+    }
+    const base = yearFile ? yearFile.content : bookmarkYearHeader(year);
+    const content = base.replace(/\s*$/, "") + "\n" + row + "\n";
+    const resp = await githubPut(cfg, yearPath, content, message, yearFile?.sha || null);
+    if (resp.ok) return { count: 1, skipped: 0, updated: !!yearFile, title };
+    if (resp.status !== 409) {
+      const errText = await resp.text();
+      throw new Error(`GitHub 提交失败 HTTP ${resp.status}: ${errText.slice(0, 120)}`);
+    }
+    // 409 → sha 过期，下一轮循环重读最新内容再试
+  }
+  throw new Error("GitHub 提交失败：sha 冲突重试多次仍未成功，请稍后重试");
 }
 
-// 用绝对仓库路径提交（不拼 cfg.path 前缀），用于收藏目录
-async function commitToGithubAbsolute(cfg, fullPath, content, message, sha) {
+// 底层 PUT 原语：用绝对仓库路径提交（不拼 cfg.path 前缀），返回原始 resp 由调用方处理。
+async function githubPut(cfg, fullPath, content, message, sha) {
   const apiBase = `https://api.github.com/repos/${cfg.owner}/${cfg.repo}/contents/${encodeURIPath(fullPath)}`;
   const headers = {
     "Authorization": `Bearer ${cfg.token}`,
@@ -451,11 +512,7 @@ async function commitToGithubAbsolute(cfg, fullPath, content, message, sha) {
   };
   const body = { message, content: utf8ToBase64(content), branch: cfg.branch };
   if (sha) body.sha = sha;
-  const resp = await fetch(apiBase, { method: "PUT", headers, body: JSON.stringify(body) });
-  if (!resp.ok) {
-    const errText = await resp.text();
-    throw new Error(`GitHub 提交失败 HTTP ${resp.status}: ${errText.slice(0, 120)}`);
-  }
+  return fetch(apiBase, { method: "PUT", headers, body: JSON.stringify(body) });
 }
 
 // ─── frontmatter ─────────────────────────────────────────────

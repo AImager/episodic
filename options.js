@@ -1,7 +1,7 @@
 // options.js — 设置页逻辑
 
-const fields = ["token", "owner", "repo", "branch", "path"];
-const defaults = { owner: "AImager", repo: "note", branch: "main", path: "对话存档" };
+const fields = ["token", "owner", "repo", "branch", "path", "bookmarkPath"];
+const defaults = { owner: "AImager", repo: "note", branch: "main", path: "对话存档", bookmarkPath: "收藏" };
 
 const statusEl = document.getElementById("status");
 
@@ -27,6 +27,7 @@ document.getElementById("save").addEventListener("click", () => {
   if (!cfg.owner || !cfg.repo) { setStatus("请填写 Owner 和 Repo", false); return; }
   cfg.branch = cfg.branch || "main";
   cfg.path = (cfg.path || "对话存档").replace(/^\/+|\/+$/g, "");
+  cfg.bookmarkPath = (cfg.bookmarkPath || "收藏").replace(/^\/+|\/+$/g, "");
 
   chrome.storage.local.set({ githubConfig: cfg }, () => setStatus("已保存"));
 });
